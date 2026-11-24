@@ -1,0 +1,688 @@
+<title>Toolfit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one centered task column (max 720px), a sticky header with a 4-step progress bar, one screen visible at a time. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --sunken: #e9edf3;
+  --fg: #16202e;
+  --muted: #566274;
+  --line: #d5dce6;
+  --accent: #1d6b52;       /* "fits" green */
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefe7;
+  --flag: #8a5a00;         /* look-alike flag text */
+  --flag-soft: #fbefd2;
+  --warn: #a3361f;
+  --warn-soft: #f8e1da;
+  --focus: #2f62d8;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141b; --surface: #171e28; --sunken: #1f2834; --fg: #e8edf4; --muted: #9aa7b8; --line: #2c3746;
+    --accent: #4fbf96; --accent-ink: #08130f; --accent-soft: #173a2f; --flag: #f0c46a; --flag-soft: #3a2f16;
+    --warn: #f08a72; --warn-soft: #3d1f18; --focus: #7aa2ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141b; --surface: #171e28; --sunken: #1f2834; --fg: #e8edf4; --muted: #9aa7b8; --line: #2c3746;
+  --accent: #4fbf96; --accent-ink: #08130f; --accent-soft: #173a2f; --flag: #f0c46a; --flag-soft: #3a2f16;
+  --warn: #f08a72; --warn-soft: #3d1f18; --focus: #7aa2ff; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4.5vw, 2.3rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-direction: column; gap: 10px; padding-block: 12px; }
+.brandrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; cursor: pointer; }
+.brand .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); font-size: 13px; }
+.trust { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.trust b { color: var(--fg); font-weight: 600; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; list-style: none; margin: 0; padding: 0; }
+.steps li { font-size: 0.75rem; color: var(--muted); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.steps li::before { content: ""; height: 4px; border-radius: 2px; background: var(--line); }
+.steps li.done::before, .steps li.now::before { background: var(--accent); }
+.steps li.now { color: var(--fg); font-weight: 600; }
+.steps span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.proto-note { font-size: 0.78rem; color: var(--muted); background: var(--sunken); border-radius: 8px; padding: 8px 12px; }
+
+main { padding-block: 28px 64px; }
+.screen { display: flex; flex-direction: column; gap: 22px; }
+.lede { color: var(--muted); max-width: 60ch; }
+.eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+
+/* Form bits */
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label, .field legend { font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+textarea { width: 100%; min-height: 96px; resize: vertical; background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+textarea:focus { border-color: var(--focus); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
+.hint { font-size: 0.85rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 0.92rem; }
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.examples { display: grid; gap: 8px; }
+.example { text-align: left; background: var(--surface); border: 1.5px dashed var(--line); border-radius: var(--r); padding: 10px 14px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; }
+.example:hover { border-color: var(--accent); border-style: solid; }
+.example .who { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.example .what { flex: 1; min-width: 0; }
+
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.option { position: relative; }
+.option input { position: absolute; opacity: 0; inset: 0; }
+.option label { display: flex; flex-direction: column; gap: 2px; height: 100%; border: 1.5px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 12px 14px; cursor: pointer; font-weight: 600; }
+.option label small { font-weight: 400; color: var(--muted); font-size: 0.82rem; }
+.option input:checked + label { border-color: var(--accent); background: var(--accent-soft); }
+.option input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 0; border-radius: var(--r); padding: 12px 20px; font-weight: 600; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+.btn:hover { filter: brightness(1.07); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1.5px solid var(--line); }
+.btn.link { background: none; color: var(--muted); padding: 12px 6px; text-decoration: underline; text-underline-offset: 3px; }
+.error { color: var(--warn); font-size: 0.88rem; font-weight: 500; }
+
+.recap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 0.92rem; }
+.recap q { font-style: italic; }
+.recap .edit { margin-left: auto; }
+
+/* Loading */
+.loading { display: flex; align-items: center; gap: 12px; color: var(--muted); padding: 40px 0; }
+.spinner { width: 20px; height: 20px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Match cards */
+.matches { display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.card-head .name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rank { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+.price { font-size: 0.85rem; font-weight: 600; background: var(--sunken); border-radius: 6px; padding: 4px 8px; white-space: nowrap; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 0.78rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.tag.fit { background: var(--accent-soft); color: var(--accent); }
+.tag.flag { background: var(--flag-soft); color: var(--flag); }
+.tag.warn { background: var(--warn-soft); color: var(--warn); }
+.diff { border-left: 3px solid var(--accent); padding-left: 12px; display: flex; flex-direction: column; gap: 4px; }
+.diff .eyebrow { color: var(--accent); }
+.evidence { background: var(--sunken); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.stat { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.bar { flex: 0 0 90px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.quote { font-size: 0.92rem; }
+.quote cite { display: block; font-style: normal; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+details.more summary { cursor: pointer; font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+details.more ul { margin: 8px 0 0; padding-left: 20px; font-size: 0.92rem; display: grid; gap: 4px; }
+.why { font-size: 0.85rem; color: var(--muted); }
+
+/* Try screen */
+.promptbox { background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.promptbox pre { margin: 0; padding: 14px; font-family: var(--mono); font-size: 0.86rem; white-space: pre-wrap; word-break: break-word; }
+.promptbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--line); font-size: 0.8rem; color: var(--muted); }
+.promptbar button { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+.checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.checklist label { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; cursor: pointer; }
+.checklist input { margin-top: 4px; accent-color: var(--accent); width: 18px; height: 18px; flex: none; }
+ol.steps-list { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 500; z-index: 20; max-width: calc(100% - 32px); }
+
+.done-panel { background: var(--accent-soft); border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 10px; }
+
+@media (max-width: 480px) {
+  .example { flex-direction: column; gap: 2px; }
+  .recap .edit { margin-left: 0; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brandrow">
+      <button class="brand" id="home-btn" type="button" aria-label="Toolfit, start over"><span class="mark" aria-hidden="true">✓</span>Toolfit</button>
+      <p class="trust"><b>No paid placements.</b> Tools can't pay to be listed or ranked.</p>
+    </div>
+    <ol class="steps" id="steps" aria-label="Progress">
+      <li><span>1. Describe</span></li>
+      <li><span>2. Details</span></li>
+      <li><span>3. Matches</span></li>
+      <li><span>4. Try it</span></li>
+    </ol>
+  </div>
+</header>
+
+<main class="wrap" id="main" aria-live="polite"></main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* ---------------- Sample data (prototype) ---------------- */
+const SCENARIOS = {
+  bio: {
+    example: "ChatGPT won't answer a question for my biology assignment",
+    who: "Undergrad, biology",
+    current: "ChatGPT",
+    tools: [
+      {
+        id: "notebooklm", name: "NotebookLM", maker: "Google",
+        summary: "Answers only from the readings you upload, and links every point to the exact passage.",
+        diff: "ChatGPT answers from general training data. NotebookLM only uses your own sources, so you can check every claim against the page it came from.",
+        underneath: "Runs on Google's Gemini models.",
+        lookalike: null,
+        price: "Free", tier: 0,
+        context: { school: "Check your course's AI policy before using it on graded work.", work: null },
+        tried: 23, kept: 17,
+        quotes: [
+          ["I uploaded my lecture slides and two papers. Every answer pointed back to a page, so I knew it wasn't making things up.", "Biology undergrad"],
+          ["It won't answer things that aren't in your files, which annoyed me at first. Now I see that's the point.", "Pre-med student"]
+        ],
+        fit: ["Built for answering from your readings", "Shows where each answer came from"],
+        prompt: "1. Upload your assignment reading (PDF or slides).\n2. Ask:\n\"Using only these sources, explain [the question ChatGPT wouldn't answer]. Cite the page or slide for each point.\"",
+        checks: ["It answered the question ChatGPT wouldn't", "You can find each cited passage in your reading", "Nothing in the answer seems made up or off-topic"]
+      },
+      {
+        id: "perplexity", name: "Perplexity", maker: "Perplexity AI",
+        summary: "Searches the web for each question and shows its sources next to the answer.",
+        diff: "The AI underneath is similar to ChatGPT's. What's different is that it searches live and lists the articles it used, so you can open them.",
+        underneath: "Uses models from several companies, including OpenAI and Anthropic.",
+        lookalike: "Similar AI to what you have. The difference is the source links.",
+        price: "Free · Pro $20/mo", tier: 0,
+        context: { school: "Sources can include low-quality websites. Check them before citing.", work: null },
+        tried: 31, kept: 19,
+        quotes: [
+          ["Good for finding papers fast. I still had to check that the sources actually said what it claimed.", "Data science student"],
+          ["Felt like ChatGPT with footnotes. That was enough for me to switch for research questions.", "Graduate student, neuroscience"]
+        ],
+        fit: ["Shows sources for each answer", "Free tier covers most student use"],
+        prompt: "Ask:\n\"[The question ChatGPT wouldn't answer]. Use peer-reviewed or university sources where possible, and list them.\"\nThen open two of the sources it lists.",
+        checks: ["It answered the question ChatGPT wouldn't", "The two sources you opened say what it claims", "The sources are ones your instructor would accept"]
+      },
+      {
+        id: "claude", name: "Claude", maker: "Anthropic",
+        summary: "A general chat assistant like ChatGPT, made by a different company.",
+        diff: "Works almost the same way as ChatGPT. Students report it answers some science questions ChatGPT declines, and it can read long PDFs you upload.",
+        underneath: "Anthropic's own Claude models.",
+        lookalike: "Very similar to ChatGPT. Try it on your exact question before switching.",
+        price: "Free · Pro $20/mo", tier: 0,
+        context: { school: "Check your course's AI policy before using it on graded work.", work: null },
+        tried: 40, kept: 29,
+        quotes: [
+          ["ChatGPT gave me an error on a genetics question. Claude just answered it and explained its reasoning.", "Biology and data science undergrad"],
+          ["Now I use Claude for science and ChatGPT for everyday stuff.", "Undergrad, biochemistry"]
+        ],
+        fit: ["Students had success with this exact problem", "Same way of working as ChatGPT, so nothing new to learn"],
+        prompt: "Paste the exact question ChatGPT refused, then add:\n\"Explain your answer step by step, and tell me which parts I should double-check in my textbook.\"",
+        checks: ["It answered the question ChatGPT wouldn't", "The explanation matches your textbook or notes", "It flagged parts it was unsure about"]
+      }
+    ]
+  },
+  tokens: {
+    example: "Ran out of Cursor credits in the middle of an urgent bug fix",
+    who: "Software developer",
+    current: "Cursor",
+    tools: [
+      {
+        id: "codex", name: "Codex", maker: "OpenAI",
+        summary: "A coding agent that reads your repo, shows a plan, and then makes the changes.",
+        diff: "Works like Cursor's agent, but it's billed through a ChatGPT plan instead of Cursor credits. If you already pay for ChatGPT, you can keep working today.",
+        underneath: "OpenAI's coding models.",
+        lookalike: null,
+        price: "Included with ChatGPT Plus ($20/mo)", tier: 1,
+        context: { work: "Check whether your company allows sending code to OpenAI.", school: null },
+        tried: 18, kept: 13,
+        quotes: [
+          ["Ran out of Cursor credits on a Friday deploy. Codex picked up the same bug in about ten minutes.", "Backend developer, 2 years"],
+          ["I like that it shows the plan first. If the plan looks wrong, I stop it before it touches anything.", "Full-stack developer"]
+        ],
+        fit: ["Can start within minutes if you have ChatGPT", "Shows its plan before changing code"],
+        prompt: "In your repo, give it the bug you were fixing:\n\"[Describe the bug and paste the error]. First explain what's causing it and list the files you'd change. Don't edit anything until I approve the plan.\"",
+        checks: ["Its explanation of the cause matches what you saw", "The plan only touches files that make sense", "The fix passes your tests or manual check"]
+      },
+      {
+        id: "claudecode", name: "Claude Code", maker: "Anthropic",
+        summary: "A coding agent that works in your terminal and handles changes across many files.",
+        diff: "Runs in the terminal instead of an editor. Cursor can use Claude models too, so the AI may feel familiar even though the tool is different.",
+        underneath: "Anthropic's Claude models, which Cursor also offers.",
+        lookalike: "Same AI you may already use inside Cursor. The difference is the terminal workflow.",
+        price: "With Claude Pro ($20/mo) or pay per use", tier: 1,
+        context: { work: "Many companies route it through an approved AI gateway. Ask IT.", school: null },
+        tried: 26, kept: 18,
+        quotes: [
+          ["Better than I expected on our large codebase, but it took a day to learn how to point it at the right files.", "Student developer"],
+          ["If you're comfortable in a terminal, the switch from Cursor is easy.", "Software engineer, 1 year"]
+        ],
+        fit: ["Strong on changes across many files", "Pay-per-use option if you only need it for today"],
+        prompt: "From your project folder, run it and ask:\n\"[Describe the bug and paste the error]. Find the cause, explain it in two sentences, and propose a fix. Wait for my OK before editing.\"",
+        checks: ["It found the right files without help", "Its explanation of the cause is correct", "The fix works and doesn't break anything else"]
+      },
+      {
+        id: "copilot", name: "GitHub Copilot", maker: "GitHub",
+        summary: "A coding assistant built into VS Code and JetBrains, at a lower monthly price.",
+        diff: "Less independent than Cursor's agent for big multi-file changes, but cheaper, and many companies already have it approved.",
+        underneath: "Lets you pick models from several companies.",
+        lookalike: null,
+        price: "Free tier · Pro $10/mo", tier: 0,
+        context: { work: "Often already approved where a company uses GitHub.", school: "Free for verified students." },
+        tried: 34, kept: 21,
+        quotes: [
+          ["Our company already paid for it, so there was no approval wait. Fine for small bugs.", "Developer, 1 year"],
+          ["Cheaper, but I had to guide it more on bigger changes.", "Software developer"]
+        ],
+        fit: ["Cheapest option", "Often already approved at work"],
+        prompt: "Open the file with the bug, select the broken function, and ask in Copilot Chat:\n\"Why does this fail with [paste error]? Suggest the smallest fix.\"",
+        checks: ["It identified the real cause", "The fix is small and readable", "The bug is gone when you re-run it"]
+      }
+    ]
+  },
+  team: {
+    example: "Our marketing team needs a simpler AI tool that IT will approve",
+    who: "Engineer supporting another team",
+    current: "Claude Code",
+    tools: [
+      {
+        id: "claudedesktop", name: "Claude Desktop", maker: "Anthropic",
+        summary: "The same Claude models as Claude Code, in a simple chat app for non-technical people.",
+        diff: "Same AI underneath as Claude Code. What changes is the interface: no terminal. It can connect to company tools, but connectors are set up differently than in Claude Code.",
+        underneath: "Same Claude models as Claude Code.",
+        lookalike: "Same AI as your current tool, in a friendlier app.",
+        price: "Team plan, priced per seat", tier: 2,
+        context: { work: "Can usually run through the same AI gateway your company already approved.", school: null },
+        tried: 12, kept: 10,
+        quotes: [
+          ["It cut out all the scary parts of Claude Code for our marketing team.", "Software engineer"],
+          ["Setting up connectors took some work with IT, but the chat part needed no training.", "IT lead"]
+        ],
+        fit: ["No new AI vendor for IT to review", "No training needed for chat"],
+        prompt: "Have one marketer try a real task:\n\"Here's our brand guide [attach]. Draft three LinkedIn posts announcing [launch], each under 80 words, matching our tone.\"",
+        checks: ["The marketer finished without help", "Output matches the brand guide", "IT confirms it runs through the approved gateway"]
+      },
+      {
+        id: "chatgptbiz", name: "ChatGPT Business", maker: "OpenAI",
+        summary: "The familiar ChatGPT app with admin controls and company data protections.",
+        diff: "Most marketers already know the interface. It's a second AI vendor for IT to review, alongside the Claude tools you already use.",
+        underneath: "OpenAI's GPT models.",
+        lookalike: null,
+        price: "Per seat", tier: 2,
+        context: { work: "New vendor review needed if your company only approved Anthropic.", school: null },
+        tried: 15, kept: 11,
+        quotes: [
+          ["Everyone already knew how to use it, so adoption was instant.", "Marketing manager"],
+          ["The security review took three weeks because it was a new vendor for us.", "Platform engineer"]
+        ],
+        fit: ["Familiar to most people", "Admin controls built in"],
+        prompt: "Same test as the others so you can compare:\n\"Here's our brand guide [attach]. Draft three LinkedIn posts announcing [launch], each under 80 words, matching our tone.\"",
+        checks: ["The marketer finished without help", "Output matches the brand guide", "Cost per seat fits the budget"]
+      },
+      {
+        id: "writer", name: "Writer", maker: "Writer, Inc.",
+        summary: "An AI platform built for marketing teams, with brand voice rules and templates.",
+        diff: "A separate platform with its own models. More marketing features out of the box, but a new contract and likely higher cost than the tools you already pay for.",
+        underneath: "Writer's own Palmyra models.",
+        lookalike: null,
+        price: "Enterprise pricing", tier: 2,
+        context: { work: "New vendor and contract. Longest approval path.", school: null },
+        tried: 6, kept: 3,
+        quotes: [
+          ["The brand voice rules are great, but most of what we used it for, Claude already did.", "Software engineer"],
+          ["Good templates. Hard to justify the price next to what we already had.", "Marketing ops lead"]
+        ],
+        fit: ["Most marketing-specific features"],
+        prompt: "Same test as the others so you can compare:\n\"Here's our brand guide [attach]. Draft three LinkedIn posts announcing [launch], each under 80 words, matching our tone.\"",
+        checks: ["Clearly better output than the cheaper options", "The marketer finished without help", "Worth the extra contract"]
+      }
+    ]
+  }
+};
+const CURRENT_TOOLS = ["ChatGPT", "Claude", "Claude Code", "Cursor", "Gemini", "GitHub Copilot", "Other"];
+
+/* ---------------- State ---------------- */
+const state = {
+  task: "", current: null, scenario: null,
+  budget: null, where: null,
+  picked: null, checked: {}, report: null, note: ""
+};
+
+function pickScenario(text, current) {
+  const t = (text + " " + (current || "")).toLowerCase();
+  if (/market|team|it |approve|non-technical|nontechnical|company/.test(t)) return "team";
+  if (/cursor|token|credit|bug|code|deploy|repo|copilot/.test(t)) return "tokens";
+  return "bio";
+}
+
+/* ---------------- Rendering helpers ---------------- */
+const main = document.getElementById("main");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function setStep(n) {
+  document.querySelectorAll("#steps li").forEach((li, i) => {
+    li.className = i + 1 < n ? "done" : i + 1 === n ? "now" : "";
+    if (i + 1 === n) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+  });
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200);
+}
+function go(view) {
+  if (location.hash !== "#" + view) location.hash = view; else render();
+}
+function ensureDefaults() {
+  if (!state.scenario) {
+    const s = SCENARIOS.bio;
+    state.task = s.example; state.current = s.current; state.scenario = "bio";
+  }
+  if (!state.budget) state.budget = "free";
+  if (!state.where) state.where = "school";
+}
+function recapHTML(editTo = "describe") {
+  return `<div class="recap"><span class="eyebrow">Your task</span><q>${esc(state.task)}</q><span class="hint">Using ${esc(state.current)}</span><button class="btn link edit" data-go="${editTo}" type="button">Edit</button></div>`;
+}
+function toolsFor() {
+  const sc = SCENARIOS[state.scenario];
+  let list = sc.tools.filter(t => t.name !== state.current);
+  const over = t => (state.budget === "free" && t.tier > 0) || (state.budget === "twenty" && t.tier > 1);
+  return list.map(t => ({ ...t, over: over(t) })).sort((a, b) => a.over - b.over);
+}
+
+/* ---------------- Screens ---------------- */
+function viewDescribe() {
+  setStep(1);
+  main.innerHTML = `
+  <section class="screen" aria-labelledby="h-describe">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 id="h-describe">What is your AI tool failing at?</h1>
+      <p class="lede">Describe the task that just went wrong. We'll suggest two or three tools that people like you used for the same kind of task, and show you how each is different from what you already use.</p>
+    </div>
+    <div class="field">
+      <label for="task">The task</label>
+      <textarea id="task" placeholder="For example: ChatGPT won't summarize my 200-page PDF">${esc(state.task)}</textarea>
+      <p class="hint">Be specific. "Ran out of credits mid-deadline" works better than "need a coding tool."</p>
+    </div>
+    <fieldset>
+      <legend>What are you using now?</legend>
+      <div class="chips" id="current-chips">
+        ${CURRENT_TOOLS.map(n => `<button type="button" class="chip" aria-pressed="${state.current === n}" data-tool="${esc(n)}">${esc(n)}</button>`).join("")}
+      </div>
+    </fieldset>
+    <div class="field">
+      <span class="eyebrow">Or start from a real example</span>
+      <div class="examples">
+        ${Object.entries(SCENARIOS).map(([k, s]) => `<button type="button" class="example" data-example="${k}"><span class="what">${esc(s.example)}</span><span class="who">${esc(s.who)} · ${esc(s.current)}</span></button>`).join("")}
+      </div>
+    </div>
+    <p class="error" id="describe-err" hidden></p>
+    <div class="actions">
+      <button class="btn" id="to-details" type="button">Continue</button>
+    </div>
+    <p class="proto-note">Prototype: tool details, prices, and user reports are illustrative sample data.</p>
+  </section>`;
+  const ta = document.getElementById("task");
+  ta.addEventListener("input", () => (state.task = ta.value));
+  main.querySelectorAll("[data-tool]").forEach(b => b.addEventListener("click", () => {
+    state.current = b.dataset.tool;
+    main.querySelectorAll("[data-tool]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  }));
+  main.querySelectorAll("[data-example]").forEach(b => b.addEventListener("click", () => {
+    const s = SCENARIOS[b.dataset.example];
+    state.task = s.example; state.current = s.current; ta.value = s.example;
+    main.querySelectorAll("[data-tool]").forEach(x => x.setAttribute("aria-pressed", x.dataset.tool === s.current));
+    toast("Example filled in. You can edit it.");
+  }));
+  document.getElementById("to-details").addEventListener("click", () => {
+    const err = document.getElementById("describe-err");
+    if (state.task.trim().length < 8) { err.textContent = "Describe the task in a few words so we can match it."; err.hidden = false; ta.focus(); return; }
+    if (!state.current) { err.textContent = "Pick the tool you're using now, or choose Other."; err.hidden = false; return; }
+    state.scenario = pickScenario(state.task, state.current);
+    go("details");
+  });
+}
+
+function optionGroup(name, legend, opts) {
+  return `<fieldset><legend>${legend}</legend><div class="options">${opts.map(([v, t, s]) => `
+    <div class="option"><input type="radio" name="${name}" id="${name}-${v}" value="${v}" ${state[name] === v ? "checked" : ""}><label for="${name}-${v}">${t}<small>${s}</small></label></div>`).join("")}</div></fieldset>`;
+}
+function viewDetails() {
+  if (!state.scenario) ensureDefaults();
+  setStep(2);
+  main.innerHTML = `
+  <section class="screen" aria-labelledby="h-details">
+    ${recapHTML()}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 id="h-details">Two quick questions</h1>
+      <p class="lede">These rule out tools you can't actually use. You can skip them.</p>
+    </div>
+    ${optionGroup("budget", "What can you spend?", [["free", "Free only", "Free tools or free tiers"], ["twenty", "Up to $20 a month", "One personal subscription"], ["paid", "My school or work pays", "Team or company plan"]])}
+    ${optionGroup("where", "Where will you use it?", [["school", "For school", "Course policies may apply"], ["work", "At work", "May need IT or security approval"], ["personal", "Personal projects", "No approval needed"]])}
+    <div class="actions">
+      <button class="btn" id="to-matches" type="button">Show matches</button>
+      <button class="btn ghost" data-go="describe" type="button">Back</button>
+    </div>
+  </section>`;
+  main.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", () => (state[r.name] = r.value)));
+  document.getElementById("to-matches").addEventListener("click", () => {
+    if (!state.budget) state.budget = "paid";
+    if (!state.where) state.where = "personal";
+    go("matches");
+  });
+}
+
+function cardHTML(t, i, sc) {
+  const pct = Math.round((t.kept / t.tried) * 100);
+  const ctx = t.context[state.where];
+  return `
+  <article class="card" aria-labelledby="t-${t.id}">
+    <div class="card-head">
+      <div class="name"><span class="rank">Match ${i + 1}</span><h2 id="t-${t.id}">${esc(t.name)}</h2><span class="hint">by ${esc(t.maker)}</span></div>
+      <span class="price">${esc(t.price)}</span>
+    </div>
+    <p>${esc(t.summary)}</p>
+    <div class="tags">
+      ${t.fit.map(f => `<span class="tag fit">✓ ${esc(f)}</span>`).join("")}
+      ${t.lookalike ? `<span class="tag flag">≈ ${esc(t.lookalike)}</span>` : ""}
+      ${t.over ? `<span class="tag warn">Over your budget</span>` : ""}
+    </div>
+    <div class="diff">
+      <span class="eyebrow">How it's different from ${esc(state.current)}</span>
+      <p>${esc(t.diff)}</p>
+    </div>
+    <div class="evidence">
+      <span class="eyebrow">From people with a similar task</span>
+      <div class="stat"><span class="bar" aria-hidden="true"><i style="width:${pct}%"></i></span><span><b>${t.kept} of ${t.tried}</b> kept using it after trying it for this kind of task</span></div>
+      ${t.quotes.map(([q, w]) => `<blockquote class="quote" style="margin:0">"${esc(q)}"<cite>${esc(w)}</cite></blockquote>`).join("")}
+    </div>
+    <details class="more">
+      <summary>What's underneath, and things to check</summary>
+      <ul>
+        <li><b>AI model:</b> ${esc(t.underneath)}</li>
+        ${ctx ? `<li><b>${state.where === "work" ? "At work" : "For school"}:</b> ${esc(ctx)}</li>` : ""}
+        <li><b>Why it's listed:</b> matched to your task. Tools can't pay for placement.</li>
+      </ul>
+    </details>
+    <div class="actions">
+      <button class="btn" data-try="${t.id}" type="button">Try it on my task</button>
+    </div>
+  </article>`;
+}
+function viewMatches() {
+  ensureDefaults();
+  setStep(3);
+  main.innerHTML = `<div class="loading" role="status"><span class="spinner" aria-hidden="true"></span>Finding tools people used for tasks like yours…</div>`;
+  setTimeout(() => {
+    if (location.hash !== "#matches") return;
+    const sc = SCENARIOS[state.scenario];
+    const tools = toolsFor();
+    main.innerHTML = `
+    <section class="screen" aria-labelledby="h-matches">
+      ${recapHTML()}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <h1 id="h-matches">${tools.length} tools that fit this task</h1>
+        <p class="lede">Ranked by how often people with a similar task kept using them. Each one shows what's actually different from ${esc(state.current)}, so you can skip the ones that are the same thing in a new wrapper.</p>
+      </div>
+      <div class="matches">${tools.map((t, i) => cardHTML(t, i, sc)).join("")}</div>
+      <div class="actions">
+        <button class="btn ghost" data-go="details" type="button">Change budget or setting</button>
+        <button class="btn link" id="restart" type="button">Start a new search</button>
+      </div>
+    </section>`;
+    main.querySelectorAll("[data-try]").forEach(b => b.addEventListener("click", () => {
+      state.picked = b.dataset.try; state.checked = {}; state.report = null; state.note = "";
+      go("try");
+    }));
+    document.getElementById("restart").addEventListener("click", restart);
+    bindGo();
+  }, 650);
+}
+
+function pickedTool() {
+  ensureDefaults();
+  const sc = SCENARIOS[state.scenario];
+  return sc.tools.find(t => t.id === state.picked) || toolsFor()[0];
+}
+function viewTry() {
+  const t = pickedTool(); state.picked = t.id;
+  setStep(4);
+  main.innerHTML = `
+  <section class="screen" aria-labelledby="h-try">
+    <div class="actions"><button class="btn link" data-go="matches" type="button" style="padding-left:0">← Back to all matches</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="eyebrow">Test before you commit</span>
+      <h1 id="h-try">Try ${esc(t.name)} on your real task</h1>
+      <p class="lede">A five-minute test on your own material tells you more than any review. Run this, then check the results against the list below.</p>
+    </div>
+    <ol class="steps-list">
+      <li>Open ${esc(t.name)} (${esc(t.price.split(" · ")[0])} to start).</li>
+      <li>Run the test below, filling in the parts in [brackets].</li>
+      <li>Tick off what worked, then tell us how it went.</li>
+    </ol>
+    <div class="promptbox">
+      <div class="promptbar"><span>Test for: ${esc(state.task)}</span><button type="button" id="copy">Copy</button></div>
+      <pre id="prompt">${esc(t.prompt)}</pre>
+    </div>
+    <fieldset>
+      <legend>What to look for</legend>
+      <ul class="checklist">
+        ${t.checks.map((c, i) => `<li><label><input type="checkbox" id="chk-${i}" ${state.checked[i] ? "checked" : ""}><span>${esc(c)}</span></label></li>`).join("")}
+      </ul>
+      <p class="hint" id="chk-count"></p>
+    </fieldset>
+    <div class="actions">
+      <button class="btn" data-go="report" type="button">I tried it: report back</button>
+      <button class="btn ghost" data-go="matches" type="button">Try a different match</button>
+    </div>
+  </section>`;
+  const count = () => {
+    const n = Object.values(state.checked).filter(Boolean).length;
+    document.getElementById("chk-count").textContent = `${n} of ${t.checks.length} checks passed`;
+  };
+  t.checks.forEach((_, i) => document.getElementById("chk-" + i).addEventListener("change", e => { state.checked[i] = e.target.checked; count(); }));
+  count();
+  document.getElementById("copy").addEventListener("click", () => {
+    const text = t.prompt;
+    try {
+      navigator.clipboard.writeText(text).then(() => toast("Test prompt copied"), () => selectPrompt());
+    } catch (e) { selectPrompt(); }
+  });
+  bindGo();
+}
+function selectPrompt() {
+  const r = document.createRange(); r.selectNodeContents(document.getElementById("prompt"));
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  toast("Selected. Press Ctrl+C or ⌘C to copy.");
+}
+
+function viewReport() {
+  const t = pickedTool();
+  setStep(4);
+  const passed = Object.values(state.checked).filter(Boolean).length;
+  main.innerHTML = `
+  <section class="screen" aria-labelledby="h-report">
+    <div class="actions"><button class="btn link" data-go="try" type="button" style="padding-left:0">← Back to the test</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 id="h-report">Did ${esc(t.name)} work for your task?</h1>
+      <p class="lede">Your answer becomes evidence for the next person with a task like yours. We share your role and your words, never your name.</p>
+    </div>
+    ${optionGroup("report", "Result", [["yes", "It worked", "I'll keep using it"], ["partly", "Partly", "Helpful, with limits"], ["no", "It didn't work", "Back to the other matches"]])}
+    <div class="field">
+      <label for="note">What should the next person know? <span class="hint">(optional)</span></label>
+      <textarea id="note" placeholder="For example: worked for genetics questions, but it couldn't read scanned PDFs">${esc(state.note)}</textarea>
+    </div>
+    <p class="hint">Your test: ${passed} of ${t.checks.length} checks passed.</p>
+    <p class="error" id="report-err" hidden></p>
+    <div class="actions">
+      <button class="btn" id="submit-report" type="button">Share my result</button>
+      <button class="btn ghost" data-go="matches" type="button">Skip</button>
+    </div>
+  </section>`;
+  main.querySelectorAll("input[name=report]").forEach(r => r.addEventListener("change", () => (state.report = r.value)));
+  document.getElementById("note").addEventListener("input", e => (state.note = e.target.value));
+  document.getElementById("submit-report").addEventListener("click", () => {
+    if (!state.report) { const e = document.getElementById("report-err"); e.textContent = "Pick one result so we can count it."; e.hidden = false; return; }
+    go("done");
+  });
+  bindGo();
+}
+
+function viewDone() {
+  const t = pickedTool();
+  setStep(4);
+  const msg = { yes: `Glad it worked. ${esc(t.name)} now shows one more person who kept it for this kind of task.`, partly: `Thanks. Your note will help others know where ${esc(t.name)} falls short.`, no: `Thanks for saying so. That's just as useful to the next person.` }[state.report || "yes"];
+  main.innerHTML = `
+  <section class="screen" aria-labelledby="h-done">
+    <div class="done-panel">
+      <span class="eyebrow">Result shared</span>
+      <h1 id="h-done">${state.report === "no" ? "Let's try another match" : "Thanks for reporting back"}</h1>
+      <p>${msg}</p>
+    </div>
+    <div class="actions">
+      <button class="btn" data-go="matches" type="button">${state.report === "no" ? "See the other matches" : "Back to matches"}</button>
+      <button class="btn ghost" id="restart2" type="button">Start a new search</button>
+    </div>
+  </section>`;
+  document.getElementById("restart2").addEventListener("click", restart);
+  bindGo();
+}
+
+function restart() {
+  Object.assign(state, { task: "", current: null, scenario: null, budget: null, where: null, picked: null, checked: {}, report: null, note: "" });
+  go("describe");
+}
+function bindGo() {
+  main.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+}
+
+const VIEWS = { describe: viewDescribe, details: viewDetails, matches: viewMatches, try: viewTry, report: viewReport, done: viewDone };
+function render() {
+  const v = (location.hash || "#describe").slice(1);
+  (VIEWS[v] || viewDescribe)();
+  bindGo();
+  window.scrollTo(0, 0);
+  const h = main.querySelector("h1");
+  if (h && render._ran) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+  render._ran = true;
+}
+window.addEventListener("hashchange", render);
+document.getElementById("home-btn").addEventListener("click", restart);
+render();
+</script>
